@@ -437,9 +437,18 @@ class Request(object):
                     self._announce_revoked(
                         'terminated', True, string(exc), False)
                     send_failed_event = False  # already sent revoked event
+
             # (acks_late) acknowledge after result stored.
             if self.task.acks_late:
-                self.acknowledge()
+                reject_and_requeue = (isinstance(exc, WorkerLostError) and
+                                      self.delivery_info.get('redelivered', False) is False)
+                if reject_and_requeue:
+                    #: For acks_late set to True, we changed the default behavior
+                    #: to handle worker crash. Currently, we allow the message to be rejected
+                    #: and requeued so it will be executed again by another worker.
+                    self.reject(requeue=True)
+                else:
+                    self.acknowledge()
         self._log_error(exc_info, send_failed_event=send_failed_event)
 
     def _log_error(self, einfo, send_failed_event=True):
