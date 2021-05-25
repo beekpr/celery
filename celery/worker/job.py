@@ -440,13 +440,20 @@ class Request(object):
 
             # (acks_late) acknowledge after result stored.
             if self.task.acks_late:
-                reject_and_requeue = (isinstance(exc, WorkerLostError) and
-                                      self.delivery_info.get('redelivered', False) is False)
-                if reject_and_requeue:
-                    #: For acks_late set to True, we changed the default behavior
-                    #: to handle worker crash. Currently, we allow the message to be rejected
-                    #: and requeued so it will be executed again by another worker.
-                    self.reject(requeue=True)
+                error_type = type(exc).__name__
+                logger.info("Celery task failed due to: {}".format(error_type))
+                is_worker_lost_error = isinstance(exc, WorkerLostError)
+
+                if is_worker_lost_error:
+                    is_redelivered = self.delivery_info.get('redelivered', False)
+                    if not is_redelivered:
+                        #: For acks_late set to True, we changed the default behavior
+                        #: to handle worker crash. Currently, we allow the message to be rejected
+                        #: and requeued so it will be executed again by another worker.
+                        logger.info("Requeueing rejected task as ack_late enabled")
+                        self.reject(requeue=True)
+                    else:
+                        logger.info("Cannot requeue task as it was already redelivered")
                 else:
                     self.acknowledge()
         self._log_error(exc_info, send_failed_event=send_failed_event)
