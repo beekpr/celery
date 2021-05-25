@@ -440,12 +440,13 @@ class Request(object):
 
             # (acks_late) acknowledge after result stored.
             if self.task.acks_late:
-                reject_and_requeue = (isinstance(exc, WorkerLostError) and
-                                      self.delivery_info.get('redelivered', False) is False)
+                reject_and_requeue = isinstance(exc, WorkerLostError)
+                                      # and self.delivery_info.get('redelivered', False) is False)
                 if reject_and_requeue:
                     #: For acks_late set to True, we changed the default behavior
                     #: to handle worker crash. Currently, we allow the message to be rejected
                     #: and requeued so it will be executed again by another worker.
+                    logger.info("Requeueing rejected task as ack_late enabled")
                     self.reject(requeue=True)
                 else:
                     self.acknowledge()
