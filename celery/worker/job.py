@@ -43,6 +43,7 @@ __all__ = ['Request']
 IS_PYPY = hasattr(sys, 'pypy_version_info')
 
 logger = get_logger(__name__)
+celery_debug_logger = get_logger("celery-debug-logger")
 debug, info, warn, error = (logger.debug, logger.info,
                             logger.warning, logger.error)
 _does_info = False
@@ -441,7 +442,7 @@ class Request(object):
             # (acks_late) acknowledge after result stored.
             if self.task.acks_late:
                 error_type = type(exc).__name__
-                logger.info("Celery task failed due to: {}".format(error_type))
+                celery_debug_logger.info("Celery task failed due to: {}".format(error_type))
                 is_worker_lost_error = isinstance(exc, WorkerLostError)
 
                 if is_worker_lost_error:
@@ -450,10 +451,10 @@ class Request(object):
                         #: For acks_late set to True, we changed the default behavior
                         #: to handle worker crash. Currently, we allow the message to be rejected
                         #: and requeued so it will be executed again by another worker.
-                        logger.info("Requeueing rejected task as ack_late enabled")
+                        celery_debug_logger.info("Requeueing rejected task as ack_late enabled")
                         self.reject(requeue=True)
                     else:
-                        logger.info("Cannot requeue task as it was already redelivered")
+                        celery_debug_logger.info("Cannot requeue task as it was already redelivered")
                 else:
                     self.acknowledge()
         self._log_error(exc_info, send_failed_event=send_failed_event)
